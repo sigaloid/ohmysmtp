@@ -1,0 +1,14 @@
+[package]
+name = "ohmysmtp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+email-validation = ['email-address-parser']
+
+[dependencies]
+base64 = "0.13.0"
+email-address-parser = { version = "1.0.3", optional = true }
+nanoserde = "0.1.29"
+ureq = "2.3.0"
