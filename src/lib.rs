@@ -26,115 +26,21 @@
 )]
 
 use nanoserde::{DeJson, SerJson};
-use std::fmt::Debug;
+use std::{ffi::OsStr, fmt::Debug, io::Read};
 use ureq::Response;
 
 pub struct OhMySmtp {
     api_key: String,
 }
-#[derive(Debug, DeJson, SerJson)]
-pub struct Email {
-    from: String,
-    to: String,
-    textbody: Option<String>,
-    htmlbody: Option<String>,
-    cc: Option<String>,
-    bcc: Option<String>,
-    subject: Option<String>,
-    replyto: Option<String>,
-    list_unsubscribe: Option<String>,
-    attachments: Option<Vec<File>>,
-    tags: Option<Vec<String>>,
-}
-impl Default for Email {
-    fn default() -> Self {
-        Self {
-            from: "".into(),
-            to: "".into(),
-            textbody: None,
-            cc: None,
-            bcc: None,
-            subject: None,
-            replyto: None,
-            list_unsubscribe: None,
-            attachments: None,
-            tags: None,
-            htmlbody: None,
-        }
-    }
-}
-impl Email {
-    #[must_use]
-    pub fn new(from: String, to: String, body: String) -> Self {
-        Self {
-            from,
-            to,
-            textbody: Some(body),
-            ..Self::default()
-        }
-    }
-    #[must_use]
-    pub fn with_html(mut self, html_body: String) -> Self {
-        self.htmlbody = Some(html_body);
-        self.textbody = None;
-        self
-    }
-    #[must_use]
-    pub fn with_text_body(mut self, textbody: String) -> Self {
-        self.textbody = Some(textbody);
-        self.htmlbody = None;
-        self
-    }
-    #[must_use]
-    pub fn with_cc(mut self, cc: String) -> Self {
-        self.cc = Some(cc);
-        self
-    }
-    #[must_use]
-    pub fn with_bcc(mut self, bcc: String) -> Self {
-        self.bcc = Some(bcc);
-        self
-    }
-    #[must_use]
-    pub fn with_subject(mut self, subject: String) -> Self {
-        self.subject = Some(subject);
-        self
-    }
-    #[must_use]
-    pub fn with_replyto(mut self, replyto: String) -> Self {
-        self.replyto = Some(replyto);
-        self
-    }
-    #[must_use]
-    pub fn with_list_unsubscribe(mut self, listunsubscribe: String) -> Self {
-        self.list_unsubscribe = Some(listunsubscribe);
-        self
-    }
-    #[must_use]
-    pub fn with_attachments(mut self, attachments: Vec<File>) -> Self {
-        self.attachments = Some(attachments);
-        self
-    }
-    #[must_use]
-    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
-        self.tags = Some(tags);
-        self
-    }
-}
-#[derive(Debug, DeJson, SerJson)]
-pub struct File {
-    name: String,
-    bytes: Vec<u8>,
-    content_type: String,
-    cid: Option<String>,
-}
 impl OhMySmtp {
     #[must_use]
+    /// Create OhMySmtp instance with the given API key.
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_string(),
         }
     }
+    /// Send the given email with the API key of the OhMySmtp instance.
     pub fn send_email(&self, email: &Email) -> Result<(), Error> {
         let request = ureq::post("https://app.ohmysmtp.com/api/v1/send");
         let str = nanoserde::SerJson::serialize_json(email);
@@ -206,6 +112,121 @@ impl OhMySmtp {
             }
             Err(error) => Err(Error::NetworkError(Box::new(error))),
         }
+    }
+}
+#[derive(Debug, DeJson, SerJson)]
+pub struct Email {
+    from: String,
+    to: String,
+    textbody: Option<String>,
+    htmlbody: Option<String>,
+    cc: Option<String>,
+    bcc: Option<String>,
+    subject: Option<String>,
+    replyto: Option<String>,
+    list_unsubscribe: Option<String>,
+    attachments: Option<Vec<File>>,
+    tags: Option<Vec<String>>,
+}
+impl Default for Email {
+    fn default() -> Self {
+        Self {
+            from: "".into(),
+            to: "".into(),
+            textbody: None,
+            cc: None,
+            bcc: None,
+            subject: None,
+            replyto: None,
+            list_unsubscribe: None,
+            attachments: None,
+            tags: None,
+            htmlbody: None,
+        }
+    }
+}
+impl Email {
+    #[must_use]
+    /// Create a new Email object
+    pub fn new(from: String, to: String, body: String) -> Self {
+        Self {
+            from,
+            to,
+            textbody: Some(body),
+            ..Self::default()
+        }
+    }
+    #[must_use]
+    /// Include an HTML body to the email.
+    pub fn with_html(mut self, html_body: String) -> Self {
+        self.htmlbody = Some(html_body);
+        self.textbody = None;
+        self
+    }
+    #[must_use]
+    /// Include a text body to the email.
+    pub fn with_text_body(mut self, textbody: String) -> Self {
+        self.textbody = Some(textbody);
+        self.htmlbody = None;
+        self
+    }
+    #[must_use]
+    /// Send a cc (carbon copy) with the email, to the provided address.
+    pub fn with_cc(mut self, cc: String) -> Self {
+        self.cc = Some(cc);
+        self
+    }
+    #[must_use]
+    /// Send a bcc (blind carbon copy) with the email, to the provided address.
+    pub fn with_bcc(mut self, bcc: String) -> Self {
+        self.bcc = Some(bcc);
+        self
+    }
+    #[must_use]
+    /// Include subject with email.
+    pub fn with_subject(mut self, subject: String) -> Self {
+        self.subject = Some(subject);
+        self
+    }
+    #[must_use]
+    /// Include reply-to header containing the given email address with the email
+    pub fn with_replyto(mut self, replyto: String) -> Self {
+        self.replyto = Some(replyto);
+        self
+    }
+    #[must_use]
+    /// Include a list-unsubscribe header with the email
+    pub fn with_list_unsubscribe(mut self, listunsubscribe: String) -> Self {
+        self.list_unsubscribe = Some(listunsubscribe);
+        self
+    }
+    #[must_use]
+    /// Include a list of attachments to the email
+    pub fn with_attachments(mut self, attachments: Vec<File>) -> Self {
+        self.attachments = Some(attachments);
+        self
+    }
+    #[must_use]
+    /// Include a list of tags for the email
+    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
+        self.tags = Some(tags);
+        self
+    }
+}
+#[derive(Debug, DeJson, SerJson)]
+pub struct File {
+    name: String,
+    bytes: Vec<u8>,
+    content_type: String,
+    cid: Option<String>,
+}
+impl File { 
+    /// Convert &OsStr to a Result<File, Error> by reading the bytes and guessing the MIME type.
+    pub fn from_file_path(file_path: &OsStr) -> Result<Self, Error> {
+        let name = file_path.to_str()?.to_string();
+        let bytes = std::fs::File::open(file_path).bytes();
+        let content_type = new_mime_guess::from_path(file_path).first().ok()?.to_string();
+        Ok(Self{name, bytes, content_type: content_type, cid: None})
     }
 }
 #[derive(Debug)]
