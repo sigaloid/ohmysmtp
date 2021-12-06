@@ -26,7 +26,7 @@
 )]
 
 use nanoserde::{DeJson, SerJson};
-use std::{ffi::OsStr, fmt::Debug, io::Read};
+use std::fmt::Debug;
 use ureq::Response;
 
 pub struct OhMySmtp {
@@ -220,14 +220,23 @@ pub struct File {
     content_type: String,
     cid: Option<String>,
 }
-impl File { 
-    /// Convert &OsStr to a Result<File, Error> by reading the bytes and guessing the MIME type.
-    pub fn from_file_path(file_path: &OsStr) -> Result<Self, Error> {
-        let name = file_path.to_str()?.to_string();
-        let bytes = std::fs::File::open(file_path).bytes();
-        let content_type = new_mime_guess::from_path(file_path).first().ok()?.to_string();
-        Ok(Self{name, bytes, content_type: content_type, cid: None})
-    }
+impl File {
+    // Convert &OsStr to a Result<File, Error> by reading the bytes and guessing the MIME type.
+    // (WIP)
+    // pub fn from_file_path(file_path: &OsStr) -> Result<Self, Error> {
+    //     let name = file_path.to_str()?.to_string();
+    //     let bytes = std::fs::File::open(file_path).bytes();
+    //     let content_type = new_mime_guess::from_path(file_path)
+    //         .first()
+    //         .ok()?
+    //         .to_string();
+    //     Ok(Self {
+    //         name,
+    //         bytes,
+    //         content_type: content_type,
+    //         cid: None,
+    //     })
+    // }
 }
 #[derive(Debug)]
 pub enum Error {
