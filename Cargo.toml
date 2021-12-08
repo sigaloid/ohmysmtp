@@ -11,5 +11,4 @@ email-validation = ['email-address-parser']
 base64 = "0.13.0"
 email-address-parser = { version = "1.0.3", optional = true }
 nanoserde = "0.1.29"
-new_mime_guess = "4.0.0"
 ureq = "2.3.0"

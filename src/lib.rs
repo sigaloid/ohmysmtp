@@ -1,3 +1,27 @@
+//! Ultra-easy API to the OhMySMTP service.
+//! Yes, seriously - ultra-easy.
+//! ```
+//! use ohmysmtp::{Email, File, FileType};
+//!
+//! let email_service = OhMySmtp::new("API_KEY");
+//!
+//! let result = email_service.send_email(&Email::new(
+//!     "from@email.address",
+//!     "to@email.address",
+//!     "Body text",
+//! ));
+//!
+//!
+//! let email_advanced_example =
+//!     Email::new("from@email.address", "to@email.address", "Body text")
+//!         .with_subject("Subject line")
+//!         .with_attachment(File::new(b"File!", "file-name.txt", &FileType::Txt));
+//! match email_service.send(&email_advanced_example) {
+//!     Ok(()) => println!("Success!"),
+//!     Err(e) => println!("Error :(")
+//! }
+//! ```
+
 // #![warn(missing_docs)]
 #![deny(
     anonymous_parameters,
@@ -24,7 +48,7 @@
     unused_qualifications,
     variant_size_differences
 )]
-
+#![allow(clippy::missing_const_for_fn)]
 use nanoserde::{DeJson, SerJson};
 use std::fmt::Debug;
 use ureq::Response;
@@ -34,16 +58,18 @@ pub struct OhMySmtp {
 }
 impl OhMySmtp {
     #[must_use]
-    /// Create OhMySmtp instance with the given API key.
-    pub fn new(api_key: &str) -> Self {
+    /// Create `OhMySmtp` instance with the given API key.
+    pub fn new(api_key: impl ToString) -> Self {
         Self {
             api_key: api_key.to_string(),
         }
     }
-    /// Send the given email with the API key of the OhMySmtp instance.
-    pub fn send_email(&self, email: &Email) -> Result<(), Error> {
+    /// Send the given email with the API key of the `OhMySmtp` instance.
+    /// # Errors
+    /// Errors if any of the errors in the Errors enum are encountered.
+    pub fn send(&self, email: &Email) -> Result<(), Error> {
         let request = ureq::post("https://app.ohmysmtp.com/api/v1/send");
-        let str = nanoserde::SerJson::serialize_json(email);
+        let email_json_string = nanoserde::SerJson::serialize_json(email);
         // println!("{}", &str); // Debugging
         let read_status = |status: u16, response: Response| match status {
             200 => Ok(()),
@@ -52,13 +78,13 @@ impl OhMySmtp {
                     if response_string.contains("Invalid API") {
                         return Err(Error::InvalidApiToken);
                     } else if response_string.contains("not parseable") {
-                        return Err(Error::FromAddrNotParseable);
+                        return Err(Error::FromAddressNotParseable);
                     } else if response_string.contains("undefined field") {
                         return Err(Error::NoToField);
                     } else if response_string.contains("is invalid") {
-                        return Err(Error::ToAddrNotParseable);
+                        return Err(Error::ToAddressNotParseable);
                     } else if response_string.contains("blocked address") {
-                        return Err(Error::ToAddrBlocked);
+                        return Err(Error::ToAddressBlocked);
                     } else if response_string.contains("maximum volume") {
                         return Err(Error::RateLimit);
                     } else if response_string.contains("Extension file type blocked") {
@@ -81,7 +107,7 @@ impl OhMySmtp {
                         return Err(Error::OrganizationDisabled);
                     }
                     if response_string.contains("Verified domain") {
-                        return Err(Error::FromAddrNotEqualToRegisteredDomain);
+                        return Err(Error::FromAddressNotEqualToRegisteredDomain);
                     }
                     return Err(Error::Other(response_string));
                 }
@@ -100,7 +126,7 @@ impl OhMySmtp {
             .set("Accept", "application/json")
             .set("Content-Type", "application/json")
             .set("OhMySMTP-Server-Token", &self.api_key)
-            .send_string(&str)
+            .send_string(&email_json_string)
         {
             Ok(response) => {
                 let status = response.status();
@@ -114,16 +140,19 @@ impl OhMySmtp {
         }
     }
 }
-#[derive(Debug, DeJson, SerJson)]
+#[derive(Debug, DeJson, SerJson, Clone)]
 pub struct Email {
     from: String,
     to: String,
-    textbody: Option<String>,
-    htmlbody: Option<String>,
+    #[nserde(rename = "textbody")]
+    text_body: Option<String>,
+    #[nserde(rename = "htmlbody")]
+    html_body: Option<String>,
     cc: Option<String>,
     bcc: Option<String>,
     subject: Option<String>,
-    replyto: Option<String>,
+    #[nserde(rename = "replyto")]
+    reply_to: Option<String>,
     list_unsubscribe: Option<String>,
     attachments: Option<Vec<File>>,
     tags: Option<Vec<String>>,
@@ -133,123 +162,160 @@ impl Default for Email {
         Self {
             from: "".into(),
             to: "".into(),
-            textbody: None,
+            text_body: None,
             cc: None,
             bcc: None,
             subject: None,
-            replyto: None,
+            reply_to: None,
             list_unsubscribe: None,
             attachments: None,
             tags: None,
-            htmlbody: None,
+            html_body: None,
         }
     }
 }
 impl Email {
     #[must_use]
     /// Create a new Email object
-    pub fn new(from: String, to: String, body: String) -> Self {
+    pub fn new(from: impl ToString, to: impl ToString, body: impl ToString) -> Self {
         Self {
-            from,
-            to,
-            textbody: Some(body),
+            from: from.to_string(),
+            to: to.to_string(),
+            text_body: Some(body.to_string()),
             ..Self::default()
         }
     }
     #[must_use]
     /// Include an HTML body to the email.
-    pub fn with_html(mut self, html_body: String) -> Self {
-        self.htmlbody = Some(html_body);
-        self.textbody = None;
+    pub fn with_html(mut self, html_body: impl ToString) -> Self {
+        self.html_body = Some(html_body.to_string());
+        self.text_body = None;
         self
     }
     #[must_use]
     /// Include a text body to the email.
-    pub fn with_text_body(mut self, textbody: String) -> Self {
-        self.textbody = Some(textbody);
-        self.htmlbody = None;
+    pub fn with_text_body(mut self, textbody: impl ToString) -> Self {
+        self.text_body = Some(textbody.to_string());
+        self.html_body = None;
         self
     }
     #[must_use]
     /// Send a cc (carbon copy) with the email, to the provided address.
-    pub fn with_cc(mut self, cc: String) -> Self {
-        self.cc = Some(cc);
+    pub fn with_cc(mut self, cc: impl ToString) -> Self {
+        self.cc = Some(cc.to_string());
         self
     }
     #[must_use]
     /// Send a bcc (blind carbon copy) with the email, to the provided address.
-    pub fn with_bcc(mut self, bcc: String) -> Self {
-        self.bcc = Some(bcc);
+    pub fn with_bcc(mut self, bcc: impl ToString) -> Self {
+        self.bcc = Some(bcc.to_string());
         self
     }
     #[must_use]
     /// Include subject with email.
-    pub fn with_subject(mut self, subject: String) -> Self {
-        self.subject = Some(subject);
+    pub fn with_subject(mut self, subject: impl ToString) -> Self {
+        self.subject = Some(subject.to_string());
         self
     }
     #[must_use]
     /// Include reply-to header containing the given email address with the email
-    pub fn with_replyto(mut self, replyto: String) -> Self {
-        self.replyto = Some(replyto);
+    pub fn with_replyto(mut self, replyto: impl ToString) -> Self {
+        self.reply_to = Some(replyto.to_string());
         self
     }
     #[must_use]
     /// Include a list-unsubscribe header with the email
-    pub fn with_list_unsubscribe(mut self, listunsubscribe: String) -> Self {
-        self.list_unsubscribe = Some(listunsubscribe);
+    pub fn with_list_unsubscribe(mut self, listunsubscribe: impl ToString) -> Self {
+        self.list_unsubscribe = Some(listunsubscribe.to_string());
         self
     }
     #[must_use]
-    /// Include a list of attachments to the email
+    /// Include a list of attachments to the email (note: this will clear any previusly added attachments!)
     pub fn with_attachments(mut self, attachments: Vec<File>) -> Self {
         self.attachments = Some(attachments);
         self
     }
     #[must_use]
+    /// Include an attachment to the email (note: this will clear any previously added attachments!)
+    pub fn with_attachment(mut self, attachment: File) -> Self {
+        self.attachments = Some(vec![attachment]);
+        self
+    }
+
+    #[must_use]
     /// Include a list of tags for the email
-    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
-        self.tags = Some(tags);
+    pub fn with_tags(mut self, tags: Vec<impl ToString>) -> Self {
+        self.tags = Some(tags.into_iter().map(|x| x.to_string()).collect());
+        self
+    }
+    #[must_use]
+    /// Include a tag for the email (for internal use within the OhMySMTP service)
+    pub fn with_tag(mut self, tag: impl ToString) -> Self {
+        self.tags = Some(vec![tag.to_string()]);
         self
     }
 }
-#[derive(Debug, DeJson, SerJson)]
+#[derive(Debug, DeJson, SerJson, Clone)]
 pub struct File {
     name: String,
-    bytes: Vec<u8>,
+    content: String,
     content_type: String,
     cid: Option<String>,
 }
 impl File {
-    // Convert &OsStr to a Result<File, Error> by reading the bytes and guessing the MIME type.
-    // (WIP)
-    // pub fn from_file_path(file_path: &OsStr) -> Result<Self, Error> {
-    //     let name = file_path.to_str()?.to_string();
-    //     let bytes = std::fs::File::open(file_path).bytes();
-    //     let content_type = new_mime_guess::from_path(file_path)
-    //         .first()
-    //         .ok()?
-    //         .to_string();
-    //     Ok(Self {
-    //         name,
-    //         bytes,
-    //         content_type: content_type,
-    //         cid: None,
-    //     })
-    // }
+    /// Create new `File` by reading the bytes and setting the filetype and filename.
+    pub fn new(bytes: impl ToVec, name: impl ToString, filetype: &FileType) -> Self {
+        Self {
+            name: name.to_string(),
+            content: base64::encode(bytes.to_vec()),
+            content_type: match filetype {
+                FileType::Jpeg | FileType::Jpg => "image/jpeg".into(),
+                FileType::Png => "image/png".into(),
+                FileType::Gif => "image/gif".into(),
+                FileType::Txt => "text/plain".into(),
+                FileType::Pdf => "application/pdf".into(),
+                FileType::Docx => {
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document".into()
+                }
+                FileType::Xlsx => {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".into()
+                }
+                FileType::Pptx => {
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                        .into()
+                }
+                FileType::Csv => "text/csv".into(),
+            },
+            cid: None,
+        }
+    }
 }
+pub enum FileType {
+    Jpeg,
+    Jpg,
+    Png,
+    Gif,
+    Txt,
+    Pdf,
+    Docx,
+    Xlsx,
+    Pptx,
+    Csv,
+    // att
+}
+
 #[derive(Debug)]
 pub enum Error {
     /// We can't match your API token to a Domain
     InvalidApiToken,
     /// Our API is unable to parse the email address you are sending from
-    FromAddrNotParseable,
+    FromAddressNotParseable,
     /// You did not include a To field in your request
     NoToField,
     /// The To field does not contain a valid email address
-    ToAddrNotParseable,
+    ToAddressNotParseable,
     /// An email in the To field is in your blocked addresses list, which we cannot send to
-    ToAddrBlocked,
+    ToAddressBlocked,
     /// You can send up to 50 emails in one go by including them in the To field, this request has more than 50 emails in the To field
     TooManyToAddrs,
     /// See [here](https://docs.ohmysmtp.com/reference/send/) for details of allowed attachment file types
@@ -263,7 +329,7 @@ pub enum Error {
     /// Your organization has been disabled. Please contact support via email for details: support@ohmysmtp.com
     OrganizationDisabled,
     /// The From address needs to contain exactly the same domain that you have registered, for example, if the email has a From address of test@test.com, you must be attempting to send using the API token for the test.com address
-    FromAddrNotEqualToRegisteredDomain,
+    FromAddressNotEqualToRegisteredDomain,
     /// Something in your request is invalid, check the (Send Reference Documentation)[send] for details
     InvalidRequestFormat,
     /// You are being rate limited due to sending too many emails in a short period of time. The application of rate limits varies depending on factors such as organization age, plan, and historical sending patterns. Contact Support if you are experiencing this regularly
