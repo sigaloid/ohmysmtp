@@ -5,7 +5,7 @@
 //!
 //! let email_service = OhMySmtp::new("API_KEY");
 //!
-//! let result = email_service.send_email(&Email::new(
+//! let result = email_service.send(&Email::new(
 //!     "from@email.address",
 //!     "to@email.address",
 //!     "Body text",
