@@ -1,16 +1,24 @@
 # OhMySMTP - Rust client
 
-Example usage: 
+### Example usage:
+
+#### Cargo.toml:
+
+```toml
+ohmysmtp = { git = "https://github.com/sigaloid/ohmysmtp" }
+```
+
+#### Code:
 
 ```rust
-use ohmysmtp::{Email, File, FileType};
+use ohmysmtp::{Email, File, FileType, OhMySmtp};
 
 let email_service = OhMySmtp::new("API_KEY");
 
-let result = email_service.send_email(&Email::new(
-    "from@email.address",
-    "to@email.address",
-    "Body text",
+let result = email_service.send_email( & Email::new(
+"from@email.address",
+"to@email.address",
+"Body text",
 ));
 
 let email_advanced_example =
@@ -22,5 +30,4 @@ match email_service.send(&email_advanced_example) {
     Ok(()) => println!("Success!"),
     Err(e) => println!("Error :(")
 }
-
 ```
