@@ -264,10 +264,10 @@ pub struct File {
 }
 impl File {
     /// Create new `File` by reading the bytes and setting the filetype and filename.
-    pub fn new(bytes: impl ToVec, name: impl ToString, filetype: &FileType) -> Self {
+    pub fn new(bytes: &dyn AsRef<[u8]>, name: impl ToString, filetype: &FileType) -> Self {
         Self {
             name: name.to_string(),
-            content: base64::encode(bytes.to_vec()),
+            content: base64::encode(bytes),
             content_type: match filetype {
                 FileType::Jpeg | FileType::Jpg => "image/jpeg".into(),
                 FileType::Png => "image/png".into(),
