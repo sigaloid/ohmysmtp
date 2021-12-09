@@ -5,7 +5,7 @@
 #### Cargo.toml:
 
 ```toml
-ohmysmtp = { git = "https://github.com/sigaloid/ohmysmtp" }
+ohmysmtp = "0.1.0"
 ```
 
 #### Code:
