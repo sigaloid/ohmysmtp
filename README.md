@@ -32,6 +32,12 @@ Err(e) => println ! ("Error :(")
 }
 ```
 
+### Roadmap
+
+[] Add email validation with `email-address-parser`
+[] Add deliverability check with `check-if-email-exists`
+[] Maybe add temp email check (though I am sort of opposed to this as someone who uses them for crappy services :p)
+
 ### Show appreciation
 
 Want to say thanks for this library? Just click the button below and leave a brief note. It would make my day :)
