@@ -1,5 +1,8 @@
 # OhMySMTP - Rust client
 
+[![Documentation](https://docs.rs/ohmysmtp/badge.svg)](https://docs.rs/ohmysmtp)
+[![Latest version](https://img.shields.io/crates/v/ohmysmtp.svg)](https://crates.io/crates/ohmysmtp)
+
 ### Example usage:
 
 #### Cargo.toml:
