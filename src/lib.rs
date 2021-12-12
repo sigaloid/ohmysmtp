@@ -57,6 +57,7 @@ use ureq::Response;
 
 pub struct OhMySmtp {
     api_key: String,
+    agent: ureq::Agent,
 }
 
 impl OhMySmtp {
@@ -65,6 +66,7 @@ impl OhMySmtp {
     pub fn new(api_key: impl ToString) -> Self {
         Self {
             api_key: api_key.to_string(),
+            agent: ureq::AgentBuilder::new().user_agent("ohmysmtp/0.1.1").build()
         }
     }
     /// Send the given email with the API key of the `OhMySmtp` instance.
@@ -77,7 +79,7 @@ impl OhMySmtp {
                     return Err(Error::InvalidEmail);
                 }
             }
-        let request = ureq::post("https://app.ohmysmtp.com/api/v1/send");
+        let request = self.agent.post("https://app.ohmysmtp.com/api/v1/send");
         let email_json_string = nanoserde::SerJson::serialize_json(email);
         // println!("{}", &str); // Debugging
         let read_status = |status: u16, response: Response| match status {
