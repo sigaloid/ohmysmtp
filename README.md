@@ -8,7 +8,7 @@
 #### Cargo.toml:
 
 ```toml
-ohmysmtp = "0.1.0"
+ohmysmtp = "0.1.1"
 ```
 
 #### Code:
@@ -43,14 +43,14 @@ Err(e) => println ! ("Error :(")
 
 ### Changelog
 
-#### 0.1.0
-
-Initial release
-
 #### 0.1.1
 
 * Add optional local email validation before sending to OhMySmtp (behind `email-validation` feature)
 * Reuse ureq agent (header reuse pending https://github.com/algesten/ureq/issues/444)
+
+#### 0.1.0
+
+* Initial release
 
 ### Show appreciation
 
