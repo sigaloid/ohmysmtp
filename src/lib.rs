@@ -1,7 +1,7 @@
 //! Ultra-easy API to the OhMySMTP service.
 //! Yes, seriously - ultra-easy.
 //! ```
-//! use ohmysmtp::{Email, File, FileType};
+//! use ohmysmtp::{Email, File, FileType, OhMySmtp};
 //!
 //! let email_service = OhMySmtp::new("API_KEY");
 //!
@@ -41,21 +41,24 @@
     clippy::get_unwrap,
     clippy::nursery,
     clippy::pedantic,
-    clippy::todo,
-    clippy::unimplemented,
-    clippy::use_debug,
-    clippy::all,
-    unused_qualifications,
-    variant_size_differences
+clippy::todo,
+clippy::unimplemented,
+clippy::use_debug,
+clippy::all,
+unused_qualifications,
+variant_size_differences
 )]
 #![allow(clippy::missing_const_for_fn)]
-use nanoserde::{DeJson, SerJson};
+
 use std::fmt::Debug;
+
+use nanoserde::{DeJson, SerJson};
 use ureq::Response;
 
 pub struct OhMySmtp {
     api_key: String,
 }
+
 impl OhMySmtp {
     #[must_use]
     /// Create `OhMySmtp` instance with the given API key.
@@ -68,6 +71,12 @@ impl OhMySmtp {
     /// # Errors
     /// Errors if any of the errors in the Errors enum are encountered.
     pub fn send(&self, email: &Email) -> Result<(), Error> {
+        #[cfg(feature = "email-validation")]
+            {
+                if email_address_parser::EmailAddress::parse(&email.to, None).is_none() {
+                    return Err(Error::InvalidEmail);
+                }
+            }
         let request = ureq::post("https://app.ohmysmtp.com/api/v1/send");
         let email_json_string = nanoserde::SerJson::serialize_json(email);
         // println!("{}", &str); // Debugging
@@ -136,7 +145,7 @@ impl OhMySmtp {
                 let status = code;
                 read_status(status, response)
             }
-            Err(error) => Err(Error::NetworkError(Box::new(error))),
+            Err(error) => Err(Error::NetworkError(error.to_string())),
         }
     }
 }
@@ -304,7 +313,7 @@ pub enum FileType {
     // att
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     /// We can't match your API token to a Domain
     InvalidApiToken,
@@ -337,7 +346,10 @@ pub enum Error {
     /// Internal Server Error - our application is down, contact support if this persists
     NoContent,
     /// Network error - the server could not be reached
-    NetworkError(Box<ureq::Error>),
-    ///Other
+    NetworkError(String),
+    /// Other
     Other(String),
+    #[cfg(feature = "email-validation")]
+    /// Error within email validation (previous to any network requests to OhMySmtp)
+    InvalidEmail,
 }
