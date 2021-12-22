@@ -22,17 +22,18 @@ let result = email_service.send(&Email::new(
     "from@email.address",
     "to@email.address",
     "Body text",
-    ));
+));
 
-    let email_advanced_example =
-Email::new("from@email.address", "to@email.address", "Body text")
-.with_subject("Subject line")
-.with_attachment(File::new(b"File!", "file-name.txt", & FileType::Txt));
 
-match email_service.send( & email_advanced_example) {
-Ok(()) => println ! ("Success!"),
-Err(e) => println ! ("Error :(")
+let email_advanced_example =
+    Email::new("from@email.address", "to@email.address", "Body text")
+        .with_subject("Subject line")
+        .with_attachment(File::new(b"File!", "file-name.txt", &FileType::Txt));
+match email_service.send(&email_advanced_example) {
+    Ok(()) => println!("Success!"),
+    Err(e) => println!("Error :(")
 }
+
 ```
 
 ### Roadmap
