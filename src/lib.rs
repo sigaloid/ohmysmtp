@@ -1,4 +1,4 @@
-//! Ultra-easy API to the OhMySMTP service.
+//! Ultra-easy API to the `OhMySMTP` service.
 //! Yes, seriously - ultra-easy.
 //! ```
 //! use ohmysmtp::{Email, File, FileType, OhMySmtp};
@@ -41,18 +41,19 @@
     clippy::get_unwrap,
     clippy::nursery,
     clippy::pedantic,
-clippy::todo,
-clippy::unimplemented,
-clippy::use_debug,
-clippy::all,
-unused_qualifications,
-variant_size_differences
+    clippy::todo,
+    clippy::unimplemented,
+    clippy::use_debug,
+    clippy::all,
+    unused_qualifications,
+    variant_size_differences
 )]
 #![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::needless_pass_by_value)] // Annoyingly, clippy kept recommending to change `impl ToString` to `&impl ToString`; doing that caused size-at-compile-time errors. :(
 
 use std::fmt::Debug;
 
-use nanoserde::{DeJson, SerJson};
+use nanoserde::SerJson;
 use ureq::Response;
 
 pub struct OhMySmtp {
@@ -66,23 +67,29 @@ impl OhMySmtp {
     pub fn new(api_key: impl ToString) -> Self {
         Self {
             api_key: api_key.to_string(),
-            agent: ureq::AgentBuilder::new().user_agent("ohmysmtp/0.1.1").build()
+            agent: ureq::AgentBuilder::new()
+                .user_agent("gh:sigaloid/ohmysmtp-0.1.1")
+                .build(),
         }
     }
     /// Send the given email with the API key of the `OhMySmtp` instance.
     /// # Errors
     /// Errors if any of the errors in the Errors enum are encountered.
     pub fn send(&self, email: &Email) -> Result<(), Error> {
+        // If the email-validation feature is enabled, the email will be checked before using.
         #[cfg(feature = "email-validation")]
-            {
-                if email_address_parser::EmailAddress::parse(&email.to, None).is_none() {
-                    return Err(Error::InvalidEmail);
-                }
+        {
+            if email_address_parser::EmailAddress::parse(&email.to, None).is_none() {
+                return Err(Error::InvalidEmail);
             }
+        }
+        // Create an empty POST request to the endpoint
         let request = self.agent.post("https://app.ohmysmtp.com/api/v1/send");
+        // Serialize the `email` object to string
         let email_json_string = nanoserde::SerJson::serialize_json(email);
-        // println!("{}", &str); // Debugging
-        let read_status = |status: u16, response: Response| match status {
+        // Helper function to parse the response from the server, given the status code and the response body.
+        // Bodged from `https://docs.ohmysmtp.com/reference/responses`
+        let read_status = |status_code: u16, response: Response| match status_code {
             200 => Ok(()),
             400 => {
                 if let Ok(response_string) = response.into_string() {
@@ -103,7 +110,7 @@ impl OhMySmtp {
                     }
                     return Err(Error::Other(response_string));
                 }
-                Err(Error::Other(status.to_string()))
+                Err(Error::Other(status_code.to_string()))
             }
             401 => Err(Error::MissingApiToken),
             403 => {
@@ -122,7 +129,7 @@ impl OhMySmtp {
                     }
                     return Err(Error::Other(response_string));
                 }
-                Err(Error::Other(status.to_string()))
+                Err(Error::Other(status_code.to_string()))
             }
             406 => Err(Error::InvalidRequestFormat),
             429 => Err(Error::RateLimit),
@@ -130,28 +137,30 @@ impl OhMySmtp {
             _ => Err(Error::Other(
                 response
                     .into_string()
-                    .unwrap_or_else(|_| status.to_string()),
+                    .unwrap_or_else(|_| status_code.to_string()),
             )),
         };
-        match request
+        // Send response
+        let response = request
             .set("Accept", "application/json")
             .set("Content-Type", "application/json")
             .set("OhMySMTP-Server-Token", &self.api_key)
-            .send_string(&email_json_string)
-        {
+            .send_string(&email_json_string);
+        // Match on the response, short circuit if `ureq::Error` is returned.
+        match response {
             Ok(response) => {
-                let status = response.status();
-                read_status(status, response)
+                let status_code = response.status();
+                read_status(status_code, response)
             }
             Err(ureq::Error::Status(code, response)) => {
-                let status = code;
-                read_status(status, response)
+                let status_code = code;
+                read_status(status_code, response)
             }
             Err(error) => Err(Error::NetworkError(error.to_string())),
         }
     }
 }
-#[derive(Debug, DeJson, SerJson, Clone)]
+#[derive(Debug, SerJson, Clone)]
 pub struct Email {
     from: String,
     to: String,
@@ -167,6 +176,12 @@ pub struct Email {
     list_unsubscribe: Option<String>,
     attachments: Option<Vec<File>>,
     tags: Option<Vec<String>>,
+}
+impl ToString for Email {
+    // Implemented for tests
+    fn to_string(&self) -> String {
+        nanoserde::SerJson::serialize_json(self)
+    }
 }
 impl Default for Email {
     fn default() -> Self {
@@ -260,13 +275,13 @@ impl Email {
         self
     }
     #[must_use]
-    /// Include a tag for the email (for internal use within the OhMySMTP service)
+    /// Include a tag for the email (for internal use within the `OhMySMTP` service)
     pub fn with_tag(mut self, tag: impl ToString) -> Self {
         self.tags = Some(vec![tag.to_string()]);
         self
     }
 }
-#[derive(Debug, DeJson, SerJson, Clone)]
+#[derive(Debug, SerJson, Clone)]
 pub struct File {
     name: String,
     content: String,
@@ -278,6 +293,7 @@ impl File {
     pub fn new(bytes: &dyn AsRef<[u8]>, name: impl ToString, filetype: &FileType) -> Self {
         Self {
             name: name.to_string(),
+            // Content is base64-encoded as per OhMySMTP docs
             content: base64::encode(bytes),
             content_type: match filetype {
                 FileType::Jpeg | FileType::Jpg => "image/jpeg".into(),
@@ -301,6 +317,8 @@ impl File {
         }
     }
 }
+
+/// These filetypes are the only ones allowed as per `https://docs.ohmysmtp.com/reference/send/`
 pub enum FileType {
     Jpeg,
     Jpg,
