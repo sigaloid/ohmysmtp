@@ -1,4 +1,6 @@
-# OhMySMTP - Rust client
+# MailPace - Rust client
+
+[formerly known as OhMySMTP](https://blog.mailpace.com/blog/ohmysmtp-is-now-mailpace/), but I will not be renaming the library for now.
 
 [![Documentation](https://docs.rs/ohmysmtp/badge.svg)](https://docs.rs/ohmysmtp)
 [![Latest version](https://img.shields.io/crates/v/ohmysmtp.svg)](https://crates.io/crates/ohmysmtp)
