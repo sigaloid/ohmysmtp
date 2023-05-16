@@ -14,7 +14,7 @@ categories = ["api-bindings", "email"]
 email-validation = ['email-address-parser']
 
 [dependencies]
-base64 = "0.13.0"
+base64 = "0.21.0"
 email-address-parser = { version = "1.0.3", optional = true }
-nanoserde = "0.1.29"
-ureq = "2.3.0"
+nanoserde = "0.1.32"
+ureq = "2.6.2"
