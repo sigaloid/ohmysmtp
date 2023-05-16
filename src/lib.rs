@@ -51,7 +51,7 @@
 #![allow(clippy::needless_pass_by_value)] // Annoyingly, clippy kept recommending to change `impl ToString` to `&impl ToString`; doing that caused size-at-compile-time errors. :(
 
 use std::fmt::Debug;
-
+use base64::Engine;
 use nanoserde::SerJson;
 use ureq::Response;
 
@@ -276,7 +276,7 @@ impl File {
         Self {
             name: name.to_string(),
             // Content is base64-encoded as per OhMySMTP docs
-            content: base64::encode(bytes),
+            content: base64::engine::general_purpose::STANDARD.encode(bytes),
             content_type: match filetype {
                 FileType::Jpeg | FileType::Jpg => "image/jpeg".into(),
                 FileType::Png => "image/png".into(),
