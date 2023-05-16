@@ -26,7 +26,6 @@
 #![deny(
     anonymous_parameters,
     clippy::all,
-    const_err,
     illegal_floating_point_literal_pattern,
     late_bound_lifetime_arguments,
     path_statements,
@@ -160,7 +159,7 @@ impl OhMySmtp {
         }
     }
 }
-#[derive(Debug, SerJson, Clone)]
+#[derive(Debug, SerJson, Clone, Default)]
 pub struct Email {
     from: String,
     to: String,
@@ -181,23 +180,6 @@ impl ToString for Email {
     // Implemented for tests
     fn to_string(&self) -> String {
         nanoserde::SerJson::serialize_json(self)
-    }
-}
-impl Default for Email {
-    fn default() -> Self {
-        Self {
-            from: "".into(),
-            to: "".into(),
-            text_body: None,
-            cc: None,
-            bcc: None,
-            subject: None,
-            reply_to: None,
-            list_unsubscribe: None,
-            attachments: None,
-            tags: None,
-            html_body: None,
-        }
     }
 }
 impl Email {
@@ -333,7 +315,7 @@ pub enum FileType {
     // att
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     /// We can't match your API token to a Domain
     InvalidApiToken,
