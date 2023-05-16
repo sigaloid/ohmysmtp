@@ -51,6 +51,8 @@ use ohmysmtp::{Email, File, FileType};
 #[test]
 #[cfg(feature = "email-validation")]
 fn test_invalid_email() {
+    use ohmysmtp::{Error, OhMySmtp};
+
     let email_service = OhMySmtp::new(format!("API_KEY"));
 
     assert_eq!(
